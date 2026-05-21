@@ -220,6 +220,8 @@ llmchat = [
     "langchain-openai>=1.2.1",
     "langgraph>=1.1.10",
     "langsmith>=0.7.37", # Transitive pin (langchain-core)
+    "langchain-aws>=1.0.0",
+    "boto3>=1.34.0",
 ]
 
 # Observability dependencies (optional)

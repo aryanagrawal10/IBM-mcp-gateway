@@ -1247,15 +1247,32 @@ class AWSBedrockProvider:
                     credentials_kwargs["aws_session_token"] = self.config.aws_session_token
 
                 if model_type == "chat":
-                    self._llm = ChatBedrock(
-                        model_id=self.config.model_id,
-                        region_name=self.config.region_name,
-                        model_kwargs={
+                    provider_name = None
+                    model_id_lower = self.config.model_id.lower()
+                    if "anthropic" in model_id_lower:
+                        provider_name = "anthropic"
+                    elif "cohere" in model_id_lower:
+                        provider_name = "cohere"
+                    elif "meta" in model_id_lower:
+                        provider_name = "meta"
+                    elif "mistral" in model_id_lower:
+                        provider_name = "mistral"
+                    elif "amazon" in model_id_lower:
+                        provider_name = "amazon"
+
+                    chat_kwargs = {
+                        "model_id": self.config.model_id,
+                        "region_name": self.config.region_name,
+                        "model_kwargs": {
                             "temperature": self.config.temperature,
                             "max_tokens": self.config.max_tokens,
                         },
                         **credentials_kwargs,
-                    )
+                    }
+                    if provider_name:
+                        chat_kwargs["provider"] = provider_name
+
+                    self._llm = ChatBedrock(**chat_kwargs)
                 elif model_type == "completion":
                     self._llm = BedrockLLM(
                         model_id=self.config.model_id,
