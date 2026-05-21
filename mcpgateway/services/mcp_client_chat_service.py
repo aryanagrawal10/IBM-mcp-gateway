@@ -1660,12 +1660,29 @@ class GatewayProvider:
                 }
 
                 if model_type == "chat":
-                    self.llm = ChatBedrock(
-                        model_id=model.model_id,
-                        region_name=region_name,
-                        model_kwargs=model_kwargs,
+                    provider_name = None
+                    model_id_lower = model.model_id.lower()
+                    if "anthropic" in model_id_lower:
+                        provider_name = "anthropic"
+                    elif "cohere" in model_id_lower:
+                        provider_name = "cohere"
+                    elif "meta" in model_id_lower:
+                        provider_name = "meta"
+                    elif "mistral" in model_id_lower:
+                        provider_name = "mistral"
+                    elif "amazon" in model_id_lower:
+                        provider_name = "amazon"
+
+                    chat_kwargs = {
+                        "model_id": model.model_id,
+                        "region_name": region_name,
+                        "model_kwargs": model_kwargs,
                         **credentials_kwargs,
-                    )
+                    }
+                    if provider_name:
+                        chat_kwargs["provider"] = provider_name
+
+                    self.llm = ChatBedrock(**chat_kwargs)
                 else:
                     self.llm = BedrockLLM(
                         model_id=model.model_id,
