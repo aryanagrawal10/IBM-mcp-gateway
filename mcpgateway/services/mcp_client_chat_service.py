@@ -1516,13 +1516,64 @@ class GatewayProvider:
         from mcpgateway.services.llm_provider_service import decrypt_provider_config_for_runtime  # pylint: disable=import-outside-toplevel
         from mcpgateway.utils.services_auth import decode_auth  # pylint: disable=import-outside-toplevel
 
+        import os
+
         model_id = self.config.model
+        fallback_model_id = os.environ.get("AWS_BEDROCK_MODEL_ID")
 
         with SessionLocal() as db:
             # Try to find model by UUID first, then by model_id
             model = db.query(LLMModel).filter(LLMModel.id == model_id).first()
             if not model:
                 model = db.query(LLMModel).filter(LLMModel.model_id == model_id).first()
+
+            # If model is not in DB but matches env fallback, initialize directly
+            if not model and fallback_model_id and (model_id == fallback_model_id or not model_id or model_id == "aws-bedrock-fallback"):
+                if not _BEDROCK_AVAILABLE:
+                    raise ImportError("AWS Bedrock provider requires langchain-aws. Install with: pip install langchain-aws boto3")
+                
+                self._model_name = fallback_model_id
+                region_name = os.environ.get("AWS_REGION", "us-east-1")
+                temperature = self.config.temperature if self.config.temperature is not None else 0.7
+                max_tokens = self.config.max_tokens or 4096
+
+                provider_name = None
+                model_id_lower = fallback_model_id.lower()
+                if "anthropic" in model_id_lower:
+                    provider_name = "anthropic"
+                elif "cohere" in model_id_lower:
+                    provider_name = "cohere"
+                elif "meta" in model_id_lower:
+                    provider_name = "meta"
+                elif "mistral" in model_id_lower:
+                    provider_name = "mistral"
+                elif "amazon" in model_id_lower:
+                    provider_name = "amazon"
+
+                chat_kwargs = {
+                    "model_id": fallback_model_id,
+                    "region_name": region_name,
+                    "model_kwargs": {
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                    },
+                }
+                if provider_name:
+                    chat_kwargs["provider"] = provider_name
+
+                if model_type == "chat":
+                    self.llm = ChatBedrock(**chat_kwargs)
+                else:
+                    self.llm = BedrockLLM(
+                        model_id=fallback_model_id,
+                        region_name=region_name,
+                        model_kwargs={
+                            "temperature": temperature,
+                            "max_tokens": max_tokens,
+                        },
+                    )
+                logger.info(f"Initialized AWS Bedrock LLM via Option B1 Env Fallback: model={fallback_model_id}")
+                return self.llm
 
             if not model:
                 raise ValueError(f"Model '{model_id}' not found in LLM Settings. Configure it via Admin UI -> Settings -> LLM Settings.")

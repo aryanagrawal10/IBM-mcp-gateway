@@ -877,6 +877,26 @@ class LLMProviderService:
                 )
             )
 
+        # B1 Fallback: If no models are configured in the DB, inject the environment default Bedrock model
+        if not models:
+            import os
+            fallback_model_id = os.environ.get("AWS_BEDROCK_MODEL_ID")
+            if fallback_model_id:
+                model_display_name = "Claude 3.5 Sonnet (AWS Bedrock Fallback)" if "sonnet" in fallback_model_id.lower() else f"AWS Bedrock Fallback ({fallback_model_id})"
+                models.append(
+                    GatewayModelInfo(
+                        id=fallback_model_id,
+                        model_id=fallback_model_id,
+                        model_name=model_display_name,
+                        provider_id="aws-bedrock-fallback",
+                        provider_name="AWS Bedrock (Env Fallback)",
+                        provider_type="bedrock",
+                        supports_streaming=True,
+                        supports_function_calling=True,
+                        supports_vision=True,
+                    )
+                )
+
         return models
 
     # ---------------------------------------------------------------------------
