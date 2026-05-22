@@ -69,12 +69,13 @@ except ImportError:
 
 try:
     # Third-Party
-    from langchain_aws import BedrockLLM, ChatBedrock
+    from langchain_aws import BedrockLLM, ChatBedrock, ChatBedrockConverse
 
     _BEDROCK_AVAILABLE = True
 except ImportError:
     _BEDROCK_AVAILABLE = False
     ChatBedrock = None  # type: ignore
+    ChatBedrockConverse = None  # type: ignore
     BedrockLLM = None
 
 try:
@@ -1537,32 +1538,15 @@ class GatewayProvider:
                 temperature = self.config.temperature if self.config.temperature is not None else 0.7
                 max_tokens = self.config.max_tokens or 4096
 
-                provider_name = None
-                model_id_lower = fallback_model_id.lower()
-                if "anthropic" in model_id_lower:
-                    provider_name = "anthropic"
-                elif "cohere" in model_id_lower:
-                    provider_name = "cohere"
-                elif "meta" in model_id_lower:
-                    provider_name = "meta"
-                elif "mistral" in model_id_lower:
-                    provider_name = "mistral"
-                elif "amazon" in model_id_lower:
-                    provider_name = "amazon"
-
-                chat_kwargs = {
-                    "model_id": fallback_model_id,
-                    "region_name": region_name,
-                    "model_kwargs": {
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                    },
-                }
-                if provider_name:
-                    chat_kwargs["provider"] = provider_name
-
                 if model_type == "chat":
-                    self.llm = ChatBedrock(**chat_kwargs)
+                    # Use ChatBedrockConverse (Converse API) instead of ChatBedrock
+                    # for proper streaming token emission through LangGraph astream_events
+                    self.llm = ChatBedrockConverse(
+                        model_id=fallback_model_id,
+                        region_name=region_name,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                    )
                 else:
                     self.llm = BedrockLLM(
                         model_id=fallback_model_id,
@@ -1572,7 +1556,7 @@ class GatewayProvider:
                             "max_tokens": max_tokens,
                         },
                     )
-                logger.info(f"Initialized AWS Bedrock LLM via Option B1 Env Fallback: model={fallback_model_id}")
+                logger.info(f"Initialized AWS Bedrock LLM via Option B1 Env Fallback (Converse API): model={fallback_model_id}")
                 return self.llm
 
             if not model:
