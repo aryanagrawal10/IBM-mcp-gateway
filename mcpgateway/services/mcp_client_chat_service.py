@@ -1273,7 +1273,15 @@ class AWSBedrockProvider:
                     if provider_name:
                         chat_kwargs["provider"] = provider_name
 
-                    self._llm = ChatBedrock(**chat_kwargs)
+                    # Use ChatBedrockConverse (Converse API) — ChatBedrock silently returns empty responses
+                    converse_kwargs = {
+                        "model_id": self.config.model_id,
+                        "region_name": self.config.region_name,
+                        "temperature": self.config.temperature,
+                        "max_tokens": self.config.max_tokens,
+                        **credentials_kwargs,
+                    }
+                    self._llm = ChatBedrockConverse(**converse_kwargs)
                 elif model_type == "completion":
                     self._llm = BedrockLLM(
                         model_id=self.config.model_id,
@@ -1717,7 +1725,15 @@ class GatewayProvider:
                     if provider_name:
                         chat_kwargs["provider"] = provider_name
 
-                    self.llm = ChatBedrock(**chat_kwargs)
+                    # Use ChatBedrockConverse (Converse API) — ChatBedrock silently returns empty responses
+                    converse_kwargs = {
+                        "model_id": model.model_id,
+                        "region_name": region_name,
+                        "temperature": model_kwargs.get("temperature", 0.7),
+                        "max_tokens": model_kwargs.get("max_tokens", 4096),
+                        **credentials_kwargs,
+                    }
+                    self.llm = ChatBedrockConverse(**converse_kwargs)
                 else:
                     self.llm = BedrockLLM(
                         model_id=model.model_id,
